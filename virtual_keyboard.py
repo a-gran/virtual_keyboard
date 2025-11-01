@@ -15,11 +15,22 @@ class VirtualKeyboard:
         self.root.title("Виртуальная клавиатура")
         self.root.configure(bg='#2b2b2b')
 
+        # Разрешить изменение размера окна
+        self.root.resizable(True, True)
+
+        # Состояние полноэкранного режима
+        self.is_fullscreen = False
+        self.previous_geometry = None
+
         # Словарь для хранения кнопок
         self.buttons = {}
+        self.button_widgets = []  # Список всех виджетов кнопок для масштабирования
 
         # Текущий язык раскладки
         self.current_language = 'EN'
+
+        # Коэффициент масштабирования
+        self.scale_factor = 1.0
 
         # Английская раскладка клавиатуры
         self.keyboard_layout_en = [
@@ -68,6 +79,9 @@ class VirtualKeyboard:
         
         self.create_keyboard()
 
+        # Привязка события изменения размера окна
+        self.root.bind('<Configure>', self.on_window_resize)
+
         # Запуск слушателя клавиатуры в отдельном потоке
         self.listener_thread = threading.Thread(target=self.start_listener, daemon=True)
         self.listener_thread.start()
@@ -79,18 +93,38 @@ class VirtualKeyboard:
     def create_keyboard(self):
         """Создание визуальной клавиатуры"""
         main_frame = tk.Frame(self.root, bg='#2b2b2b', padx=10, pady=10)
-        main_frame.pack()
-        
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Верхняя панель с заголовком и кнопкой полноэкранного режима
+        header_frame = tk.Frame(main_frame, bg='#2b2b2b')
+        header_frame.grid(row=0, column=0, columnspan=15, sticky='ew')
+
         # Заголовок
         self.title_label = tk.Label(
-            main_frame,
+            header_frame,
             text="🎹 Виртуальная клавиатура - Нажимайте клавиши на физической клавиатуре | Язык: EN",
             bg='#2b2b2b',
             fg='#ffffff',
             font=('Arial', 12, 'bold'),
             pady=10
         )
-        self.title_label.grid(row=0, column=0, columnspan=15)
+        self.title_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        # Кнопка полноэкранного режима
+        self.fullscreen_btn = tk.Button(
+            header_frame,
+            text="⛶",
+            command=self.toggle_fullscreen,
+            bg='#404040',
+            fg='#ffffff',
+            font=('Arial', 16, 'bold'),
+            relief=tk.RAISED,
+            borderwidth=2,
+            padx=10,
+            pady=5,
+            cursor='hand2'
+        )
+        self.fullscreen_btn.pack(side=tk.RIGHT, padx=5)
         
         # Создание рядов клавиш
         for row_idx, row in enumerate(self.keyboard_layout, start=1):
@@ -113,13 +147,16 @@ class VirtualKeyboard:
                     font=('Arial', 10, 'bold'),
                     borderwidth=2
                 )
-                btn.pack(side=tk.LEFT, padx=2)
-                
+                btn.pack(side=tk.LEFT, padx=2, fill=tk.BOTH, expand=True)
+
                 # Сохранение кнопки в словаре
                 key_lower = key.lower()
                 if key_lower not in self.buttons:
                     self.buttons[key_lower] = []
                 self.buttons[key_lower].append(btn)
+
+                # Добавление в список для масштабирования
+                self.button_widgets.append(btn)
         
         # Счетчик нажатий
         self.counter_label = tk.Label(
@@ -274,6 +311,67 @@ class VirtualKeyboard:
         except (IndexError, KeyError):
             return None
 
+    def toggle_fullscreen(self):
+        """Переключение полноэкранного режима"""
+        if not self.is_fullscreen:
+            # Сохраняем текущую геометрию
+            self.previous_geometry = self.root.geometry()
+            # Получаем размеры экрана
+            screen_width = self.root.winfo_screenwidth()
+            screen_height = self.root.winfo_screenheight()
+            # Устанавливаем окно на весь экран
+            self.root.geometry(f"{screen_width}x{screen_height}+0+0")
+            self.fullscreen_btn.configure(text="⛶", bg='#00ff00')
+            self.is_fullscreen = True
+        else:
+            # Восстанавливаем предыдущий размер
+            if self.previous_geometry:
+                self.root.geometry(self.previous_geometry)
+            self.fullscreen_btn.configure(text="⛶", bg='#404040')
+            self.is_fullscreen = False
+
+    def on_window_resize(self, event):
+        """Обработка изменения размера окна"""
+        # Проверяем, что событие относится к главному окну
+        if event.widget != self.root:
+            return
+
+        # Вычисляем новый коэффициент масштабирования на основе ширины окна
+        base_width = 1200  # Базовая ширина окна
+        current_width = event.width
+        new_scale = max(0.5, min(3.0, current_width / base_width))
+
+        # Обновляем размер шрифта только если изменение значительное
+        if abs(new_scale - self.scale_factor) > 0.1:
+            self.scale_factor = new_scale
+            self.update_font_sizes()
+
+    def update_font_sizes(self):
+        """Обновление размеров шрифтов при масштабировании"""
+        # Базовые размеры шрифтов
+        base_title_size = 12
+        base_button_size = 10
+        base_counter_size = 11
+
+        # Новые размеры с учетом масштаба
+        title_size = max(8, int(base_title_size * self.scale_factor))
+        button_size = max(6, int(base_button_size * self.scale_factor))
+        counter_size = max(8, int(base_counter_size * self.scale_factor))
+
+        # Обновляем шрифт заголовка
+        self.title_label.configure(font=('Arial', title_size, 'bold'))
+
+        # Обновляем шрифты кнопок клавиатуры
+        for btn in self.button_widgets:
+            btn.configure(font=('Arial', button_size, 'bold'))
+
+        # Обновляем шрифт счетчика
+        self.counter_label.configure(font=('Arial', counter_size, 'bold'))
+
+        # Обновляем шрифт кнопки полноэкранного режима
+        fullscreen_btn_size = max(12, int(16 * self.scale_factor))
+        self.fullscreen_btn.configure(font=('Arial', fullscreen_btn_size, 'bold'))
+
     def start_listener(self):
         """Запуск слушателя клавиатуры"""
         with keyboard.Listener(on_press=self.on_press) as listener:
@@ -281,6 +379,10 @@ class VirtualKeyboard:
 
     def run(self):
         """Запуск приложения"""
+        # Установка минимального размера окна
+        self.root.minsize(800, 300)
+        # Установка начального размера окна
+        self.root.geometry("1200x400")
         self.root.mainloop()
 
 if __name__ == '__main__':
