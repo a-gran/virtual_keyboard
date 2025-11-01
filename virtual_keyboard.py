@@ -15,6 +15,9 @@ class VirtualKeyboard:
         self.root.title("Виртуальная клавиатура")
         self.root.configure(bg='#2b2b2b')
 
+        # Окно всегда поверх других окон
+        self.root.attributes('-topmost', True)
+
         # Разрешить изменение размера окна
         self.root.resizable(True, True)
 
@@ -36,6 +39,10 @@ class VirtualKeyboard:
 
         # Главный фрейм для клавиатуры (будем пересоздавать при смене раскладки)
         self.main_frame = None
+
+        # Текст для отображения набираемых символов
+        self.typed_text = ""
+        self.max_text_length = 50  # Максимальная длина отображаемого текста
 
         # Английская раскладка клавиатуры (основной символ | символ с Shift)
         self.keyboard_layout_en = [
@@ -150,10 +157,27 @@ class VirtualKeyboard:
         )
         self.title_label.grid(row=0, column=0, sticky='ew', pady=(0, 10))
 
+        # Текстовое поле для отображения набираемого текста
+        text_size = max(12, int(20 * self.scale_factor))
+        self.text_display = tk.Label(
+            self.main_frame,
+            text=self.typed_text if self.typed_text else " ",
+            bg='#1a1a1a',
+            fg='#00ff00',
+            font=('Courier New', text_size, 'bold'),
+            relief=tk.SUNKEN,
+            borderwidth=2,
+            anchor='center',
+            padx=10,
+            pady=8,
+            width=50
+        )
+        self.text_display.grid(row=1, column=0, sticky='ew', pady=(0, 10))
+
         # Контейнер для клавиатуры
         keyboard_container = tk.Frame(self.main_frame, bg='#2b2b2b')
-        keyboard_container.grid(row=1, column=0, sticky='nsew')
-        self.main_frame.rowconfigure(1, weight=1)
+        keyboard_container.grid(row=2, column=0, sticky='nsew')
+        self.main_frame.rowconfigure(2, weight=1)
 
         # Создание рядов клавиш
         for row_idx, row in enumerate(self.keyboard_layout):
@@ -175,7 +199,7 @@ class VirtualKeyboard:
                 base_key = key.split('|')[0].strip() if '|' in key else key
 
                 # Определяем цвет кнопки (F и J - клавиши для слепой печати)
-                if base_key.upper() in ['F', 'J', 'Ф', 'О']:  # F, J и их русские аналоги
+                if base_key.upper() in ['F', 'J', 'А', 'О']:  # F, J и их русские аналоги (А, О)
                     bg_color = '#5a5a5a'  # Более светлый серый для F и J
                 else:
                     bg_color = '#404040'  # Обычный цвет
@@ -348,17 +372,53 @@ class VirtualKeyboard:
         # Запоминаем текущую кнопку
         self.last_pressed_buttons = buttons_to_highlight
     
+    def add_character(self, char):
+        """Добавление символа в отображаемый текст"""
+        if char is not None:
+            self.typed_text += char
+            # Если текст длиннее максимальной длины, обрезаем начало
+            if len(self.typed_text) > self.max_text_length:
+                self.typed_text = self.typed_text[-self.max_text_length:]
+            self.update_text_display()
+
+    def handle_special_key(self, key_name):
+        """Обработка специальных клавиш"""
+        if key_name == 'backspace':
+            # Удаление последнего символа
+            if self.typed_text:
+                self.typed_text = self.typed_text[:-1]
+                self.update_text_display()
+        elif key_name == 'space':
+            # Добавление пробела
+            self.add_character(' ')
+        elif key_name == 'enter':
+            # Очистка текста при нажатии Enter
+            self.typed_text = ""
+            self.update_text_display()
+        elif key_name == 'esc':
+            # Очистка текста при нажатии ESC
+            self.typed_text = ""
+            self.update_text_display()
+
+    def update_text_display(self):
+        """Обновление отображения набранного текста"""
+        if hasattr(self, 'text_display') and self.text_display:
+            display_text = self.typed_text if self.typed_text else " "
+            self.text_display.configure(text=display_text)
+
     def on_press(self, key):
         """Обработка нажатия клавиши"""
         try:
             # Обычная клавиша
             key_char = key.char
             self.root.after(0, lambda: self.highlight_key(key_char))
+            self.root.after(0, lambda: self.add_character(key_char))
         except AttributeError:
             # Специальная клавиша
             key_name = str(key).replace('Key.', '')
             self.root.after(0, lambda: self.highlight_key(key_name))
-    
+            self.root.after(0, lambda: self.handle_special_key(key_name))
+
     def get_keyboard_language(self):
         """Определение текущего языка клавиатуры в Windows"""
         try:
