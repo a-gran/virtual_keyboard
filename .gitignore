@@ -5,3 +5,4 @@ __pycache__/
 nul
 NUL
 keylogger.py
+*.log
