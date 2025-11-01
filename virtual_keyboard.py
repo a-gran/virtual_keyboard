@@ -6,18 +6,23 @@
 import tkinter as tk
 from pynput import keyboard
 import threading
+import ctypes
+import time
 
 class VirtualKeyboard:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Виртуальная клавиатура")
         self.root.configure(bg='#2b2b2b')
-        
+
         # Словарь для хранения кнопок
         self.buttons = {}
-        
-        # Раскладка клавиатуры
-        self.keyboard_layout = [
+
+        # Текущий язык раскладки
+        self.current_language = 'EN'
+
+        # Английская раскладка клавиатуры
+        self.keyboard_layout_en = [
             ['Esc', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12'],
             ['`', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 'Backspace'],
             ['Tab', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '[', ']', '\\'],
@@ -25,6 +30,19 @@ class VirtualKeyboard:
             ['Shift', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', ',', '.', '/', 'Shift'],
             ['Ctrl', 'Win', 'Alt', 'Space', 'Alt', 'Win', 'Menu', 'Ctrl']
         ]
+
+        # Русская раскладка клавиатуры
+        self.keyboard_layout_ru = [
+            ['Esc', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12'],
+            ['ё', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 'Backspace'],
+            ['Tab', 'Й', 'Ц', 'У', 'К', 'Е', 'Н', 'Г', 'Ш', 'Щ', 'З', 'Х', 'Ъ', '\\'],
+            ['Caps', 'Ф', 'Ы', 'В', 'А', 'П', 'Р', 'О', 'Л', 'Д', 'Ж', 'Э', 'Enter'],
+            ['Shift', 'Я', 'Ч', 'С', 'М', 'И', 'Т', 'Ь', 'Б', 'Ю', '.', 'Shift'],
+            ['Ctrl', 'Win', 'Alt', 'Space', 'Alt', 'Win', 'Menu', 'Ctrl']
+        ]
+
+        # Текущая раскладка
+        self.keyboard_layout = self.keyboard_layout_en
         
         # Маппинг специальных клавиш
         self.key_mapping = {
@@ -49,10 +67,14 @@ class VirtualKeyboard:
         }
         
         self.create_keyboard()
-        
+
         # Запуск слушателя клавиатуры в отдельном потоке
         self.listener_thread = threading.Thread(target=self.start_listener, daemon=True)
         self.listener_thread.start()
+
+        # Запуск мониторинга раскладки в отдельном потоке
+        self.layout_monitor_thread = threading.Thread(target=self.monitor_layout, daemon=True)
+        self.layout_monitor_thread.start()
         
     def create_keyboard(self):
         """Создание визуальной клавиатуры"""
@@ -60,15 +82,15 @@ class VirtualKeyboard:
         main_frame.pack()
         
         # Заголовок
-        title = tk.Label(
-            main_frame, 
-            text="🎹 Виртуальная клавиатура - Нажимайте клавиши на физической клавиатуре",
+        self.title_label = tk.Label(
+            main_frame,
+            text="🎹 Виртуальная клавиатура - Нажимайте клавиши на физической клавиатуре | Язык: EN",
             bg='#2b2b2b',
             fg='#ffffff',
             font=('Arial', 12, 'bold'),
             pady=10
         )
-        title.grid(row=0, column=0, columnspan=15)
+        self.title_label.grid(row=0, column=0, columnspan=15)
         
         # Создание рядов клавиш
         for row_idx, row in enumerate(self.keyboard_layout, start=1):
@@ -169,11 +191,94 @@ class VirtualKeyboard:
             key_name = str(key).replace('Key.', '')
             self.root.after(0, lambda: self.highlight_key(key_name))
     
+    def get_keyboard_language(self):
+        """Определение текущего языка клавиатуры в Windows"""
+        try:
+            # Получаем handle активного окна
+            user32 = ctypes.WinDLL('user32', use_last_error=True)
+            curr_window = user32.GetForegroundWindow()
+            thread_id = user32.GetWindowThreadProcessId(curr_window, 0)
+            # Получаем текущую раскладку
+            klid = user32.GetKeyboardLayout(thread_id)
+            # Младшее слово содержит идентификатор языка
+            lid = klid & 0xFFFF
+
+            # 0x0409 - English (US), 0x0419 - Russian
+            if lid == 0x0419:
+                return 'RU'
+            else:
+                return 'EN'
+        except Exception:
+            return 'EN'
+
+    def monitor_layout(self):
+        """Мониторинг изменения раскладки клавиатуры"""
+        while True:
+            try:
+                new_language = self.get_keyboard_language()
+                if new_language != self.current_language:
+                    self.current_language = new_language
+                    self.root.after(0, self.update_keyboard_layout)
+                time.sleep(0.1)  # Проверка каждые 100мс
+            except Exception:
+                time.sleep(0.1)
+
+    def update_keyboard_layout(self):
+        """Обновление отображения клавиатуры при смене раскладки"""
+        # Выбираем нужную раскладку
+        if self.current_language == 'RU':
+            self.keyboard_layout = self.keyboard_layout_ru
+            lang_text = "RU"
+            lang_color = '#ff6b6b'
+        else:
+            self.keyboard_layout = self.keyboard_layout_en
+            lang_text = "EN"
+            lang_color = '#4dabf7'
+
+        # Обновляем заголовок
+        self.title_label.configure(
+            text=f"🎹 Виртуальная клавиатура - Нажимайте клавиши на физической клавиатуре | Язык: {lang_text}",
+            fg=lang_color
+        )
+
+        # Обновляем текст на кнопках
+        for row_idx, row in enumerate(self.keyboard_layout):
+            for col_idx, key in enumerate(row):
+                # Пропускаем служебные клавиши (они одинаковы в обеих раскладках)
+                if key in ['Esc', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12',
+                           'Backspace', 'Tab', 'Caps', 'Enter', 'Shift', 'Ctrl', 'Win', 'Alt', 'Space', 'Menu']:
+                    continue
+
+                # Находим соответствующие кнопки и обновляем их текст
+                key_lower = key.lower()
+                if key_lower in self.buttons:
+                    for btn in self.buttons[key_lower]:
+                        btn.configure(text=key)
+
+                # Также создаем новую запись в словаре для поиска по новому ключу
+                if key_lower not in self.buttons:
+                    # Находим старый ключ из другой раскладки
+                    old_key = self.get_corresponding_key(row_idx, col_idx)
+                    if old_key and old_key.lower() in self.buttons:
+                        self.buttons[key_lower] = self.buttons[old_key.lower()]
+
+    def get_corresponding_key(self, row_idx, col_idx):
+        """Получение соответствующей клавиши из другой раскладки"""
+        try:
+            if self.current_language == 'RU':
+                # Ищем в английской раскладке
+                return self.keyboard_layout_en[row_idx][col_idx]
+            else:
+                # Ищем в русской раскладке
+                return self.keyboard_layout_ru[row_idx][col_idx]
+        except (IndexError, KeyError):
+            return None
+
     def start_listener(self):
         """Запуск слушателя клавиатуры"""
         with keyboard.Listener(on_press=self.on_press) as listener:
             listener.join()
-    
+
     def run(self):
         """Запуск приложения"""
         self.root.mainloop()
@@ -181,6 +286,7 @@ class VirtualKeyboard:
 if __name__ == '__main__':
     print("Запуск виртуальной клавиатуры...")
     print("Нажимайте клавиши на физической клавиатуре - они будут подсвечиваться!")
-    
+    print("Раскладка автоматически переключается синхронно с системной (RU/EN)")
+
     app = VirtualKeyboard()
     app.run()
