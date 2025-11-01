@@ -568,9 +568,5 @@ class VirtualKeyboard:
         self.root.mainloop()
 
 if __name__ == '__main__':
-    print("Запуск виртуальной клавиатуры...")
-    print("Нажимайте клавиши на физической клавиатуре - они будут подсвечиваться!")
-    print("Раскладка автоматически переключается синхронно с системной (RU/EN)")
-
     app = VirtualKeyboard()
     app.run()
