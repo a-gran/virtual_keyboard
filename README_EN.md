@@ -30,9 +30,10 @@ virtual_keyboard/
 
 ### Option 1: Download Pre-built EXE (Recommended)
 
-1. Go to the [Releases](../../releases) section
-2. Download the latest version of `VirtualKeyboard.exe`
-3. Run the file by double-clicking
+1. [Download VirtualKeyboard.exe](../../raw/main/dist/VirtualKeyboard.exe)
+2. Run the file by double-clicking
+
+> **Note**: Windows may show a SmartScreen warning. Click "More info" → "Run anyway".
 
 ### Option 2: Run from Source Code
 
