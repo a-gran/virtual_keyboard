@@ -9,5 +9,6 @@ keylogger.py
 
 # PyInstaller build artifacts
 build/
-dist/
+dist/*
+!dist/VirtualKeyboard.exe
 *.spec
