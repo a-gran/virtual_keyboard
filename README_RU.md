@@ -1,7 +1,7 @@
 # Виртуальная клавиатура
 
 [![Русский](https://img.shields.io/badge/lang-ru-red)](README_RU.md)
-[![English](https://img.shields.io/badge/lang-en-blue)](README_EN.md)
+[![English](https://img.shields.io/badge/lang-en-blue)](README.md)
 
 ## Описание
 
