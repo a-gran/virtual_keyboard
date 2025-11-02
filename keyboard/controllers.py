@@ -43,6 +43,8 @@ class BaseKeyboardController(ABC):
         # Создаём копию маппинга специальных клавиш из конфигурации
         # copy() нужен, чтобы не изменять исходный словарь
         self.key_mapping = KeyboardLayoutConfig.SPECIAL_KEY_MAPPING.copy()
+        # Время последнего нажатия backspace для защиты от двойного срабатывания
+        self.last_backspace_time = 0
 
     @abstractmethod
     def process_character(self, char: str) -> str:
@@ -92,6 +94,13 @@ class BaseKeyboardController(ABC):
         """
         # Проверяем, является ли нажатая клавиша клавишей Backspace
         if key_name == 'backspace':
+            # Получаем текущее время для защиты от двойного срабатывания
+            current_time = time.time()
+            # Если прошло менее 50 миллисекунд с последнего backspace, игнорируем
+            if current_time - self.last_backspace_time < 0.05:
+                return
+            # Обновляем время последнего нажатия backspace
+            self.last_backspace_time = current_time
             # Проверяем, есть ли набранный текст для удаления
             if self.typed_text:
                 # Удаляем последний символ (срез [:-1] берёт все символы кроме последнего)
