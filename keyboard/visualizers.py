@@ -219,7 +219,7 @@ class BaseKeyboardVisualizer(ABC):
             bg_color = (UIConfig.KEY_ACCENT_COLOR if base_key.upper() in home_row_keys
                        else UIConfig.KEY_DEFAULT_COLOR)
 
-            button_size = max(7, int(12 * self.scale_factor))
+            button_size = max(9, int(14 * self.scale_factor))
             btn = tk.Label(
                 row_frame,
                 text=key,
@@ -228,9 +228,10 @@ class BaseKeyboardVisualizer(ABC):
                 fg=UIConfig.FG_COLOR,
                 font=(UIConfig.FONT_FAMILY, button_size, 'bold'),
                 borderwidth=2,
-                width=1
+                width=1,
+                pady=2
             )
-            btn.grid(row=0, column=col_idx, sticky='nsew', padx=UIConfig.SPACING, pady=0)
+            btn.grid(row=0, column=col_idx, sticky='nsew', padx=UIConfig.SPACING, pady=UIConfig.SPACING)
 
             # Регистрируем символы для кнопки
             self._register_button_symbols(key, btn)

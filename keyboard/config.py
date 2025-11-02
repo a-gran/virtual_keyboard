@@ -56,11 +56,11 @@ class UIConfig:
     # Минимальная ширина окна (в пикселях)
     MIN_WINDOW_WIDTH = 800
     # Минимальная высота окна (в пикселях)
-    MIN_WINDOW_HEIGHT = 300
+    MIN_WINDOW_HEIGHT = 360
     # Ширина окна по умолчанию (в пикселях)
     DEFAULT_WINDOW_WIDTH = 1200
     # Высота окна по умолчанию (в пикселях)
-    DEFAULT_WINDOW_HEIGHT = 400
+    DEFAULT_WINDOW_HEIGHT = 480
 
 
 class KeyboardLayoutConfig:
